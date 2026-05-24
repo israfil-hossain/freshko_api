@@ -39,10 +39,87 @@ subscriptionRouter.get('/plans', getPlans);
  */
 subscriptionRouter.get('/plan/:id', getPlanById);
 
-// Admin plan CRUD
+/**
+ * @swagger
+ * /api/subscription/create:
+ *   post:
+ *     tags: [Subscriptions]
+ *     summary: Create a subscription plan (Admin)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, price, type, schedule]
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               price: { type: number }
+ *               type: { type: string, enum: ['free', 'premium'] }
+ *               schedule: { type: string, enum: ['monthly', 'weekly'] }
+ *     responses:
+ *       200:
+ *         description: Plan created
+ */
 subscriptionRouter.post('/create', authSeller, createPlan);
+
+/**
+ * @swagger
+ * /api/subscription/plan/{id}:
+ *   put:
+ *     tags: [Subscriptions]
+ *     summary: Update subscription plan (Admin)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               price: { type: number }
+ *               type: { type: string }
+ *               schedule: { type: string }
+ *     responses:
+ *       200:
+ *         description: Plan updated
+ */
 subscriptionRouter.put('/plan/:id', authSeller, updatePlan);
+
+/**
+ * @swagger
+ * /api/subscription/plan/{id}:
+ *   delete:
+ *     tags: [Subscriptions]
+ *     summary: Delete subscription plan (Admin)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Plan deleted
+ */
 subscriptionRouter.delete('/plan/:id', authSeller, deletePlan);
+
+/**
+ * @swagger
+ * /api/subscription/admin/plans:
+ *   get:
+ *     tags: [Subscriptions]
+ *     summary: Get all subscription plans (Admin)
+ *     responses:
+ *       200:
+ *         description: List of all plans
+ */
 subscriptionRouter.get('/admin/plans', authSeller, getAllPlansAdmin);
 
 /**

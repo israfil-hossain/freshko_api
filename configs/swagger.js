@@ -10,6 +10,19 @@ const options = {
         },
         servers: [
             { url: 'http://localhost:5001', description: 'Development server' },
+            { url: process.env.API_URL || 'https://freshko-api.vercel.app', description: 'Production server' },
+        ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                },
+            },
+        },
+        security: [
+            { bearerAuth: [] },
         ],
     },
     apis: ['./routes/*.js', './controllers/*.js'],

@@ -33,6 +33,23 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+/**
+ * @swagger
+ * /stripe:
+ *   post:
+ *     tags: [Stripe Webhooks]
+ *     summary: Stripe payment webhook endpoint
+ *     description: Receives webhook events from Stripe for payment confirmations
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook processed
+ */
 app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks);
 
 // Middleware Configuration
@@ -41,7 +58,43 @@ app.use(cookieParser());
 
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     tags: [Health]
+ *     summary: Health check endpoint
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ */
 app.get('/', (req, res) => res.send('API is working!'));
+
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Detailed health check
+ *     responses:
+ *       200:
+ *         description: Health status with database connection info
+ */
+app.get('/health', async (req, res) => {
+    try {
+        const mongoose = await import('mongoose');
+        const dbState = mongoose.default.connection.readyState;
+        const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
+        res.json({
+            status: 'healthy',
+            database: dbStatus,
+            timestamp: new Date().toISOString(),
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'unhealthy', error: error.message });
+    }
+});
 app.use('/api/user', userRouter);
 app.use('/api/seller', sellerRouter);
 app.use('/api/product', productRouter);

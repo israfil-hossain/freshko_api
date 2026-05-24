@@ -192,8 +192,69 @@ userRouter.get('/logout', logout);
  *         description: Profile updated
  */
 userRouter.put('/update-profile', authUser, updateProfile);
+/**
+ * @swagger
+ * /api/user/change-password:
+ *   put:
+ *     tags: [User]
+ *     summary: Change user password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Password changed
+ */
 userRouter.put('/change-password', authUser, changePassword);
+
+/**
+ * @swagger
+ * /api/user/forgot-password:
+ *   post:
+ *     tags: [User]
+ *     summary: Request password reset email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200:
+ *         description: Reset email sent
+ */
 userRouter.post('/forgot-password', forgotPassword);
+
+/**
+ * @swagger
+ * /api/user/reset-password:
+ *   post:
+ *     tags: [User]
+ *     summary: Reset password with token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, newPassword]
+ *             properties:
+ *               token: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Password reset
+ */
 userRouter.post('/reset-password', resetPassword);
 
 export default userRouter;

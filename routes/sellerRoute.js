@@ -25,7 +25,29 @@ const sellerRouter = express.Router();
  *         description: Login successful
  */
 sellerRouter.post('/login', sellerLogin);
+
+/**
+ * @swagger
+ * /api/seller/is-auth:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Check if admin is authenticated
+ *     responses:
+ *       200:
+ *         description: Auth status
+ */
 sellerRouter.get('/is-auth', authSeller, isSellerAuth);
+
+/**
+ * @swagger
+ * /api/seller/logout:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Admin logout
+ *     responses:
+ *       200:
+ *         description: Logged out
+ */
 sellerRouter.get('/logout', sellerLogout);
 
 /**
