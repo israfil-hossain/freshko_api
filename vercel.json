@@ -4,9 +4,17 @@
     {
       "src": "server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/cron/subscription.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/cron/subscription",
+      "dest": "/api/cron/subscription.js"
+    },
     {
       "src": "/stripe",
       "dest": "/server.js"
@@ -18,6 +26,12 @@
     {
       "src": "/(.*)",
       "dest": "/server.js"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/subscription",
+      "schedule": "0 2 * * *"
     }
   ]
 }

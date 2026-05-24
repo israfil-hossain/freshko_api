@@ -19,7 +19,6 @@ import deliveryManRouter from './routes/deliveryManRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
 import newsletterRouter from './routes/newsletterRoute.js';
 import deliveryChargeRouter from './routes/deliveryChargeRoute.js';
-import { startSubscriptionCron } from './services/subscriptionCron.js';
 
 const app = express();
 
@@ -56,7 +55,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/delivery-charge', deliveryChargeRouter);
 
-startSubscriptionCron();
+// Cron jobs now run via Vercel Cron Jobs at /api/cron/subscription
 
 // For Vercel serverless deployment
 if (process.env.NODE_ENV !== 'production') {
