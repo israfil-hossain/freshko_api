@@ -19,12 +19,14 @@ import deliveryManRouter from './routes/deliveryManRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
 import newsletterRouter from './routes/newsletterRoute.js';
 import deliveryChargeRouter from './routes/deliveryChargeRoute.js';
+import { seedDefaultCategories } from './services/categorySeedService.js';
 
 const app = express();
 
 const port = process.env.PORT || 5001;
 await connectDB();
 await connectCloudinary();
+await seedDefaultCategories();
 
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:3000',

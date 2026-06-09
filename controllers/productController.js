@@ -21,6 +21,29 @@ export const addProduct = async (req, res) => {
 // Get Product : /api/product/list
 export const productList = async (req, res) => {
     try {
+        const page = Number.parseInt(req.query.page, 10);
+        const limit = Number.parseInt(req.query.limit, 10);
+
+        if (Number.isInteger(page) && Number.isInteger(limit) && page > 0 && limit > 0) {
+            const skip = (page - 1) * limit;
+            const [products, total] = await Promise.all([
+                Product.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit),
+                Product.countDocuments({}),
+            ]);
+            const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+            return res.json({
+                success: true,
+                products,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages,
+                },
+            });
+        }
+
         const products = await Product.find({});
         res.json({success: true, products});
     } catch (error) {

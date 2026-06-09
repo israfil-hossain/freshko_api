@@ -36,10 +36,19 @@ productRouter.post('/add', upload.array(["images"]), authSeller, addProduct);
  * /api/product/list:
  *   get:
  *     tags: [Products]
- *     summary: Get all products
+ *     summary: Get products
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Page number for paginated results
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Products per page
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of products, with pagination metadata when page and limit are provided
  */
 productRouter.get('/list', productList);
 
