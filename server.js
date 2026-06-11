@@ -28,8 +28,23 @@ await connectDB();
 await connectCloudinary();
 await seedDefaultCategories();
 
+const allowedOrigins = [
+    process.env.CLIENT_URL || 'http://localhost:3000',
+    'http://localhost:8081',
+    'http://localhost:19006',
+    'exp://localhost:8081',
+    'exp://localhost:19000',
+    'exp://localhost:19001',
+];
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

@@ -1,6 +1,6 @@
 import express from 'express';
 import authUser from '../middlewares/authUser.js';
-import { getAllOrders, getUserOrders, placeOrderCOD, placeOrderStripe, adminCreateOrder, assignDeliveryMan, getOrderDelivery } from '../controllers/orderController.js';
+import { getAllOrders, getUserOrders, placeOrderCOD, placeOrderStripe, placeOrderBkash, adminCreateOrder, assignDeliveryMan, getOrderDelivery } from '../controllers/orderController.js';
 import authSeller from '../middlewares/authSeller.js';
 
 const orderRouter = express.Router();
@@ -52,6 +52,7 @@ orderRouter.get('/seller', authSeller, getAllOrders);
  *         description: Stripe checkout URL returned
  */
 orderRouter.post('/stripe', authUser, placeOrderStripe);
+orderRouter.post('/bkash', authUser, placeOrderBkash);
 
 /**
  * @swagger

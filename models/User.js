@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     password: {type: String, required: true},
     phone: {type: String, default: ""},
     avatar: {type: String, default: ""},
+    googleId: {type: String, default: null},
     cartItems: {type: Object, default: {}},
     resetPasswordToken: {type: String, default: null},
     resetPasswordExpires: {type: Date, default: null}

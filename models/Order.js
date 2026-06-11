@@ -13,6 +13,10 @@ const orderSchema = new mongoose.Schema({
         paymentType: {type: String, required: true},
         isPaid: {type: Boolean, required: true, default: false},
         deliveryStatus: {type: String, enum: ['unassigned', 'assigned', 'picked-up', 'in-transit', 'delivered', 'cancelled'], default: 'unassigned'},
+        bkashDetails: {
+            trxID: {type: String, default: null},
+            phone: {type: String, default: null}
+        },
 }, {timestamps: true});
 
 const Order = mongoose.models.order || mongoose.model('order', orderSchema);

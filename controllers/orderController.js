@@ -316,6 +316,52 @@ export const assignDeliveryMan = async (req, res) => {
     }
 };
 
+// Place Order bKash : /api/order/bkash
+export const placeOrderBkash = async (req, res) => {
+    try {
+        const bkashEnabled = process.env.BKASH_ENABLED === 'true';
+        if (!bkashEnabled) {
+            return res.json({ success: false, message: "bKash payment is not available yet" });
+        }
+
+        const userId = req.userId;
+        const { address, items, trxID, phone } = req.body;
+        if (!address || items.length === 0) {
+            return res.json({ success: false, message: "Invalid data" });
+        }
+        if (!trxID || !phone) {
+            return res.json({ success: false, message: "bKash transaction ID and phone number required" });
+        }
+
+        const { subtotal, deliveryCharge, total } = await calcAmount(items);
+
+        const order = await Order.create({
+            userId,
+            items,
+            amount: total,
+            deliveryCharge,
+            address,
+            paymentType: "bKash",
+            isPaid: false,
+            bkashDetails: { trxID, phone }
+        });
+
+        try {
+            const user = await User.findById(userId);
+            if (user?.email) {
+                sendOrderConfirmationEmail(user.email, order, user.name);
+            }
+        } catch (err) {
+            console.log('Failed to send order email:', err.message);
+        }
+
+        return res.json({ success: true, message: "Order placed! Awaiting bKash payment confirmation." });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+}
+
 // Get delivery assignments for an order : GET /api/order/:id/delivery
 export const getOrderDelivery = async (req, res) => {
     try {

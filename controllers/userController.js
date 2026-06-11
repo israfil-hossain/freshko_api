@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { OAuth2Client } from 'google-auth-library';
 
 // Register User : /api/user/register
 export const register = async (req, res) => {
@@ -27,7 +28,9 @@ export const register = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000, // Cookie expiration time
             path: '/'
         })
-        return res.json({success: true, user: {_id: user._id, email: user.email, name: user.name, phone: user.phone}});
+        const tokenSecret = process.env.MOBILE_TOKEN_SECRET || process.env.JWT_SECRET;
+        const mobileToken = jwt.sign({id: user._id}, tokenSecret, {expiresIn: '30d'});
+        return res.json({success: true, token: mobileToken, user: {_id: user._id, email: user.email, name: user.name, phone: user.phone}});
     } catch (error) {
         console.log(error.message);
         res.json({success: false, message: error.message});
@@ -58,11 +61,81 @@ export const login = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/' 
         });
-        return res.json({success: true, user: {email: user.email, name: user.name}});
+        const tokenSecret = process.env.MOBILE_TOKEN_SECRET || process.env.JWT_SECRET;
+        const mobileToken = jwt.sign({id: user._id}, tokenSecret, {expiresIn: '30d'});
+        return res.json({success: true, token: mobileToken, user: {email: user.email, name: user.name}});
 
     } catch (error) {
         console.log(error.message);
         res.json({success: false, message: error.message});       
+    }
+}
+
+// Google Login : /api/user/google-login
+export const googleLogin = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) {
+            return res.json({ success: false, message: "Google token required" });
+        }
+
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+        if (!clientId) {
+            return res.json({ success: false, message: "Google login not configured" });
+        }
+
+        const client = new OAuth2Client(clientId);
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: clientId,
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload || !payload.email) {
+            return res.json({ success: false, message: "Invalid Google token" });
+        }
+
+        let user = await User.findOne({ email: payload.email });
+
+        if (user) {
+            // Link googleId if not already linked
+            if (!user.googleId) {
+                user.googleId = payload.sub;
+                await user.save();
+            }
+        } else {
+            // Create new user with Google info
+            const hashedPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+            user = await User.create({
+                name: payload.name || payload.email.split('@')[0],
+                email: payload.email,
+                password: hashedPassword,
+                avatar: payload.picture || '',
+                googleId: payload.sub,
+                phone: "",
+            });
+        }
+
+        const tokenSecret = process.env.MOBILE_TOKEN_SECRET || process.env.JWT_SECRET;
+        const token = jwt.sign({ id: user._id }, tokenSecret, { expiresIn: '30d' });
+
+        // Set cookie for web
+        res.cookie('userToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/'
+        });
+
+        return res.json({
+            success: true,
+            token,
+            user: { _id: user._id, email: user.email, name: user.name, phone: user.phone, avatar: user.avatar }
+        });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
     }
 }
 

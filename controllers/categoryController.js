@@ -71,3 +71,81 @@ export const deleteCategory = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+export const addSubcategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+        let subImage = '';
+
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, { resource_type: 'image' });
+            subImage = result.secure_url;
+        }
+
+        const category = await Category.findByIdAndUpdate(
+            id,
+            { $push: { subcategories: { name, image: subImage } } },
+            { new: true }
+        );
+
+        if (!category) {
+            return res.json({ success: false, message: 'Category not found' });
+        }
+
+        const added = category.subcategories[category.subcategories.length - 1];
+        res.json({ success: true, message: 'Subcategory added', subcategory: added });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export const updateSubcategory = async (req, res) => {
+    try {
+        const { id, subId } = req.params;
+        const { name } = req.body;
+
+        const category = await Category.findOne({ _id: id, 'subcategories._id': subId });
+
+        if (!category) {
+            return res.json({ success: false, message: 'Category or subcategory not found' });
+        }
+
+        const sub = category.subcategories.id(subId);
+        if (name !== undefined) sub.name = name;
+
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, { resource_type: 'image' });
+            sub.image = result.secure_url;
+        }
+
+        await category.save();
+
+        res.json({ success: true, message: 'Subcategory updated', subcategory: sub });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export const deleteSubcategory = async (req, res) => {
+    try {
+        const { id, subId } = req.params;
+
+        const category = await Category.findByIdAndUpdate(
+            id,
+            { $pull: { subcategories: { _id: subId } } },
+            { new: true }
+        );
+
+        if (!category) {
+            return res.json({ success: false, message: 'Category not found' });
+        }
+
+        res.json({ success: true, message: 'Subcategory deleted' });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};

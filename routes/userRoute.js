@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, isAuth, logout, updateProfile, changePassword, forgotPassword, resetPassword } from '../controllers/userController.js';
+import { register, login, googleLogin, isAuth, logout, updateProfile, changePassword, forgotPassword, resetPassword } from '../controllers/userController.js';
 import authUser from '../middlewares/authUser.js';
 
 const userRouter = express.Router();
@@ -156,6 +156,8 @@ userRouter.post('/register', register);
  *         description: Login successful
  */
 userRouter.post('/login', login);
+
+userRouter.post('/google-login', googleLogin);
 
 /**
  * @swagger
