@@ -7,6 +7,9 @@ import DeliveryAssignment from '../models/DeliveryAssignment.js';
 import DeliveryMan from '../models/DeliveryMan.js';
 import { sendOrderConfirmationEmail } from '../services/emailService.js';
 import { calculateDeliveryCharge } from '../services/deliveryChargeService.js';
+import { createPayment, executePayment, isBkashEnabled } from '../services/bkashService.js';
+import { emitToOrder, emitToUser, emitToAdmin } from '../configs/socket.js';
+import { notifyOrderStatus, notifyOrderCreated } from '../services/notificationService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -20,6 +23,35 @@ async function calcAmount(items) {
     return { subtotal, deliveryCharge, total: subtotal + deliveryCharge };
 }
 
+async function validateStock(items) {
+    for (const item of items) {
+        const product = await Product.findById(item.product);
+        if (!product) {
+            return { valid: false, message: `Product not found` };
+        }
+        if (!product.inStock || product.quantity < item.quantity) {
+            return {
+                valid: false,
+                message: `"${product.name}" is out of stock. Available: ${product.quantity}, Requested: ${item.quantity}`
+            };
+        }
+    }
+    return { valid: true };
+}
+
+async function decrementStock(items) {
+    for (const item of items) {
+        const product = await Product.findById(item.product);
+        if (product) {
+            const newQty = product.quantity - item.quantity;
+            await Product.findByIdAndUpdate(product._id, {
+                quantity: newQty,
+                inStock: newQty > 0,
+            });
+        }
+    }
+}
+
 // Place Order COD : /api/order/cod
 export const placeOrderCOD = async (req, res) => {
     try {
@@ -28,7 +60,14 @@ export const placeOrderCOD = async (req, res) => {
             return res.json({ success: false, message: "Invalid data" });
         }
 
+        const stockCheck = await validateStock(items);
+        if (!stockCheck.valid) {
+            return res.json({ success: false, message: stockCheck.message });
+        }
+
         const { subtotal, deliveryCharge, total } = await calcAmount(items);
+
+        await decrementStock(items);
 
         const order = await Order.create({
             userId,
@@ -67,6 +106,11 @@ export const placeOrderStripe = async (req, res) => {
             return res.json({ success: false, message: "Invalid data" });
         }
 
+        const stockCheck = await validateStock(items);
+        if (!stockCheck.valid) {
+            return res.json({ success: false, message: stockCheck.message });
+        }
+
         let productData = [];
 
         for (const item of items) {
@@ -77,6 +121,8 @@ export const placeOrderStripe = async (req, res) => {
         }
 
         const { subtotal, deliveryCharge, total } = await calcAmount(items);
+
+        await decrementStock(items);
 
         const order = await Order.create({
             userId,
@@ -220,6 +266,11 @@ export const adminCreateOrder = async (req, res) => {
             return res.json({ success: false, message: 'Missing required fields' });
         }
 
+        const stockCheck = await validateStock(items);
+        if (!stockCheck.valid) {
+            return res.json({ success: false, message: stockCheck.message });
+        }
+
         let resolvedUserId = userId;
 
         if (!resolvedUserId && customer) {
@@ -255,6 +306,8 @@ export const adminCreateOrder = async (req, res) => {
         }, 0);
 
         amount += Math.floor(amount * 0.02);
+
+        await decrementStock(items);
 
         const order = await Order.create({
             userId: resolvedUserId,
@@ -333,7 +386,14 @@ export const placeOrderBkash = async (req, res) => {
             return res.json({ success: false, message: "bKash transaction ID and phone number required" });
         }
 
+        const stockCheck = await validateStock(items);
+        if (!stockCheck.valid) {
+            return res.json({ success: false, message: stockCheck.message });
+        }
+
         const { subtotal, deliveryCharge, total } = await calcAmount(items);
+
+        await decrementStock(items);
 
         const order = await Order.create({
             userId,
@@ -369,6 +429,252 @@ export const getOrderDelivery = async (req, res) => {
         const assignment = await DeliveryAssignment.findOne({ orderId: id })
             .populate('deliveryManId', 'name phone');
         res.json({ success: true, assignment });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Cancel Order : POST /api/order/:id/cancel
+export const cancelOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const userId = req.userId || req.user._id;
+        
+        const order = await Order.findById(id);
+        if (!order) {
+            return res.json({ success: false, message: 'Order not found' });
+        }
+        
+        // Check if order belongs to user (unless admin)
+        const isAdmin = req.user && req.user.roles && req.user.roles.includes('admin');
+        if (order.userId.toString() !== userId.toString() && !isAdmin) {
+            return res.json({ success: false, message: 'Not authorized to cancel this order' });
+        }
+        
+        // Check if order can be cancelled
+        if (order.deliveryStatus === 'delivered') {
+            return res.json({ success: false, message: 'Cannot cancel delivered order' });
+        }
+        
+        if (order.deliveryStatus === 'in-transit') {
+            return res.json({ success: false, message: 'Cannot cancel order in transit' });
+        }
+        
+        // Update order
+        order.status = 'Cancelled';
+        order.deliveryStatus = 'cancelled';
+        order.cancellationReason = reason || 'No reason provided';
+        order.cancelledAt = new Date();
+        order.cancelledBy = isAdmin ? 'admin' : 'customer';
+        await order.save();
+        
+        // Restore stock
+        for (const item of order.items) {
+            const product = await Product.findById(item.product);
+            if (product) {
+                await Product.findByIdAndUpdate(product._id, {
+                    $inc: { quantity: item.quantity },
+                    inStock: true,
+                });
+            }
+        }
+        
+        // Process refund to wallet
+        if (order.isPaid || order.paymentType === 'bKash') {
+            const WalletTransaction = (await import('../models/WalletTransaction.js')).default;
+            const User = (await import('../models/User.js')).default;
+            
+            const user = await User.findById(order.userId);
+            const currentBalance = user.walletBalance || 0;
+            const refundAmount = order.amount;
+            
+            await new WalletTransaction({
+                userId: order.userId,
+                type: 'refund',
+                amount: refundAmount,
+                description: `Refund for cancelled order #${order._id}`,
+                orderId: order._id,
+                balance: currentBalance + refundAmount,
+            }).save();
+            
+            user.walletBalance = currentBalance + refundAmount;
+            await user.save();
+            
+            order.refundAmount = refundAmount;
+            order.refundStatus = 'processed';
+            await order.save();
+        }
+        
+        // Emit real-time update
+        emitToOrder(id, 'order_status_changed', {
+            orderId: id,
+            status: 'Cancelled',
+            deliveryStatus: 'cancelled',
+            message: `Order cancelled: ${reason}`,
+        });
+        
+        emitToUser(order.userId, 'order_status_changed', {
+            orderId: id,
+            status: 'Cancelled',
+            deliveryStatus: 'cancelled',
+        });
+        
+        emitToAdmin('order_status_changed', {
+            orderId: id,
+            status: 'Cancelled',
+            deliveryStatus: 'cancelled',
+            userId: order.userId,
+        });
+        
+        res.json({ success: true, message: 'Order cancelled successfully', order });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// bKash Payment : POST /api/order/bkash-payment
+export const bkashPayment = async (req, res) => {
+    try {
+        if (!isBkashEnabled()) {
+            return res.json({ success: false, message: 'bKash payment is not available' });
+        }
+        
+        const userId = req.userId;
+        const { address, items } = req.body;
+        const { origin } = req.headers;
+        
+        if (!address || !items || items.length === 0) {
+            return res.json({ success: false, message: 'Invalid data' });
+        }
+        
+        const stockCheck = await validateStock(items);
+        if (!stockCheck.valid) {
+            return res.json({ success: false, message: stockCheck.message });
+        }
+        
+        const { subtotal, deliveryCharge, total } = await calcAmount(items);
+        
+        await decrementStock(items);
+        
+        const order = await Order.create({
+            userId,
+            items,
+            amount: total,
+            deliveryCharge,
+            address,
+            paymentType: 'bKash',
+            isPaid: false,
+        });
+        
+        // Create bKash payment
+        const callbackURL = `${origin}/api/order/bkash-callback`;
+        const bkashResponse = await createPayment(
+            total.toString(),
+            order._id.toString(),
+            callbackURL
+        );
+        
+        if (bkashResponse.statusCode === '0000') {
+            // Update order with bKash paymentID
+            order.bkashDetails.paymentID = bkashResponse.paymentID;
+            await order.save();
+            
+            return res.json({
+                success: true,
+                bkashURL: bkashResponse.bkashURL,
+                paymentID: bkashResponse.paymentID,
+                orderId: order._id,
+            });
+        } else {
+            return res.json({
+                success: false,
+                message: bkashResponse.statusMessage || 'bKash payment creation failed',
+            });
+        }
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// bKash Callback : GET /api/order/bkash-callback
+export const bkashCallback = async (req, res) => {
+    try {
+        const { paymentID, status } = req.query;
+        
+        if (status === 'cancel' || status === 'failure') {
+            return res.redirect(`${process.env.CLIENT_URL}/cart?payment=failed`);
+        }
+        
+        // Execute payment
+        const result = await executePayment(paymentID);
+        
+        if (result.statusCode === '0000') {
+            // Find order by paymentID
+            const order = await Order.findOne({ 'bkashDetails.paymentID': paymentID });
+            
+            if (order) {
+                order.isPaid = true;
+                order.bkashDetails.trxID = result.trxID;
+                order.bkashDetails.status = result.transactionStatus;
+                await order.save();
+                
+                // Clear cart
+                await User.findByIdAndUpdate(order.userId, { cartItems: {} });
+                
+                // Send notification
+                await notifyOrderCreated(order.userId, order._id, order.amount);
+                
+                return res.redirect(`${process.env.CLIENT_URL}/loader?next=my-orders&payment=success`);
+            }
+        }
+        
+        return res.redirect(`${process.env.CLIENT_URL}/cart?payment=failed`);
+    } catch (error) {
+        console.log(error.message);
+        return res.redirect(`${process.env.CLIENT_URL}/cart?payment=failed`);
+    }
+};
+
+// Request Refund : POST /api/order/:id/refund
+export const requestRefund = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason, amount, type } = req.body;
+        const userId = req.userId || req.user._id;
+        
+        const order = await Order.findById(id);
+        if (!order) {
+            return res.json({ success: false, message: 'Order not found' });
+        }
+        
+        if (order.userId.toString() !== userId.toString()) {
+            return res.json({ success: false, message: 'Not authorized' });
+        }
+        
+        if (order.deliveryStatus !== 'delivered') {
+            return res.json({ success: false, message: 'Order must be delivered to request refund' });
+        }
+        
+        // Create refund request
+        const Refund = (await import('../models/Refund.js')).default;
+        const refund = new Refund({
+            orderId: id,
+            userId,
+            amount: amount || order.amount,
+            reason,
+            type: type || 'full',
+        });
+        await refund.save();
+        
+        // Update order
+        order.refundStatus = 'pending';
+        await order.save();
+        
+        res.json({ success: true, message: 'Refund request submitted', refund });
     } catch (error) {
         console.log(error.message);
         res.json({ success: false, message: error.message });

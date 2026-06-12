@@ -94,6 +94,10 @@ export const updateProduct = async (req, res) => {
         const { id } = req.params;
         const updates = req.body;
 
+        if (updates.tags && typeof updates.tags === 'string') {
+            try { updates.tags = JSON.parse(updates.tags); } catch { updates.tags = []; }
+        }
+
         if (updates.images === undefined && req.files && req.files.length > 0) {
             const imagesUrl = await Promise.all(req.files.map(async (item) => {
                 const result = await cloudinary.uploader.upload(item.path, {resource_type: 'image'});

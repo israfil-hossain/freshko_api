@@ -1,6 +1,6 @@
 import express from 'express';
 import authUser from '../middlewares/authUser.js';
-import { getAllOrders, getUserOrders, placeOrderCOD, placeOrderStripe, placeOrderBkash, adminCreateOrder, assignDeliveryMan, getOrderDelivery } from '../controllers/orderController.js';
+import { getAllOrders, getUserOrders, placeOrderCOD, placeOrderStripe, placeOrderBkash, adminCreateOrder, assignDeliveryMan, getOrderDelivery, cancelOrder, bkashPayment, bkashCallback, requestRefund } from '../controllers/orderController.js';
 import authSeller from '../middlewares/authSeller.js';
 
 const orderRouter = express.Router();
@@ -102,6 +102,64 @@ orderRouter.post('/assign-delivery', authSeller, assignDeliveryMan);
 
 /**
  * @swagger
+ * /api/order/auto-assign:
+ *   post:
+ *     tags: [Orders]
+ *     summary: Auto-assign a delivery man to an order
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderId]
+ *             properties:
+ *               orderId: { type: string }
+ *     responses:
+ *       200:
+ *         description: Auto-assigned successfully
+ */
+orderRouter.post('/auto-assign', authSeller, async (req, res) => {
+  try {
+    const { autoAssignOrder } = await import('../services/autoAssignmentService.js');
+    const result = await autoAssignOrder(req.body.orderId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/order/batch-assign:
+ *   post:
+ *     tags: [Orders]
+ *     summary: Batch assign multiple orders to a rider
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderIds]
+ *             properties:
+ *               orderIds: { type: array, items: { type: string } }
+ *     responses:
+ *       200:
+ *         description: Batch assigned successfully
+ */
+orderRouter.post('/batch-assign', authSeller, async (req, res) => {
+  try {
+    const { batchAssignOrders } = await import('../services/autoAssignmentService.js');
+    const result = await batchAssignOrders(req.body.orderIds);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * @swagger
  * /api/order/{id}/delivery:
  *   get:
  *     tags: [Orders]
@@ -116,5 +174,63 @@ orderRouter.post('/assign-delivery', authSeller, assignDeliveryMan);
  *         description: Delivery assignment details
  */
 orderRouter.get('/:id/delivery', getOrderDelivery);
+
+/**
+ * @swagger
+ * /api/order/{id}/cancel:
+ *   post:
+ *     tags: [Orders]
+ *     summary: Cancel an order
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Order cancelled
+ */
+orderRouter.post('/:id/cancel', authUser, cancelOrder);
+
+/**
+ * @swagger
+ * /api/order/bkash-payment:
+ *   post:
+ *     tags: [Orders]
+ *     summary: Place order with bKash payment
+ *     responses:
+ *       200:
+ *         description: bKash payment URL
+ */
+orderRouter.post('/bkash-payment', authUser, bkashPayment);
+
+/**
+ * @swagger
+ * /api/order/bkash-callback:
+ *   get:
+ *     tags: [Orders]
+ *     summary: bKash payment callback
+ *     responses:
+ *       302:
+ *         description: Redirect to client
+ */
+orderRouter.get('/bkash-callback', bkashCallback);
+
+/**
+ * @swagger
+ * /api/order/{id}/refund:
+ *   post:
+ *     tags: [Orders]
+ *     summary: Request refund
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Refund request submitted
+ */
+orderRouter.post('/:id/refund', authUser, requestRefund);
 
 export default orderRouter;

@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { OAuth2Client } from 'google-auth-library';
-
 // Register User : /api/user/register
 export const register = async (req, res) => {
     try {
@@ -30,7 +29,7 @@ export const register = async (req, res) => {
         })
         const tokenSecret = process.env.MOBILE_TOKEN_SECRET || process.env.JWT_SECRET;
         const mobileToken = jwt.sign({id: user._id}, tokenSecret, {expiresIn: '30d'});
-        return res.json({success: true, token: mobileToken, user: {_id: user._id, email: user.email, name: user.name, phone: user.phone}});
+        return res.json({success: true, token: mobileToken, user: {_id: user._id, email: user.email, name: user.name, phone: user.phone, walletBalance: user.walletBalance}});
     } catch (error) {
         console.log(error.message);
         res.json({success: false, message: error.message});
@@ -63,7 +62,7 @@ export const login = async (req, res) => {
         });
         const tokenSecret = process.env.MOBILE_TOKEN_SECRET || process.env.JWT_SECRET;
         const mobileToken = jwt.sign({id: user._id}, tokenSecret, {expiresIn: '30d'});
-        return res.json({success: true, token: mobileToken, user: {email: user.email, name: user.name}});
+        return res.json({success: true, token: mobileToken, user: {_id: user._id, email: user.email, name: user.name, phone: user.phone, walletBalance: user.walletBalance}});
 
     } catch (error) {
         console.log(error.message);
@@ -288,4 +287,5 @@ export const resetPassword = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
+
 

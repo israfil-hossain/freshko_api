@@ -1,6 +1,6 @@
 import express from 'express';
 import { sellerLogin, isSellerAuth, sellerLogout, listUsers } from '../controllers/sellerController.js';
-import authSeller from '../middlewares/authSeller.js';
+import { authSeller, requirePermission } from '../middlewares/auth.js';
 
 const sellerRouter = express.Router();
 
@@ -60,6 +60,6 @@ sellerRouter.get('/logout', sellerLogout);
  *       200:
  *         description: List of users
  */
-sellerRouter.get('/users', authSeller, listUsers);
+sellerRouter.get('/users', authSeller, requirePermission('users.view'), listUsers);
 
 export default sellerRouter;

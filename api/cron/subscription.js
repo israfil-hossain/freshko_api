@@ -11,6 +11,17 @@ async function generateOrderForItems(sub, itemsForOrder) {
   }
   amount += Math.floor(amount * 0.02);
 
+  for (const item of itemsForOrder) {
+    const product = await Product.findById(item.product);
+    if (product) {
+      const newQty = product.quantity - item.quantity;
+      await Product.findByIdAndUpdate(product._id, {
+        quantity: newQty,
+        inStock: newQty > 0,
+      });
+    }
+  }
+
   const order = await Order.create({
     userId: sub.userId,
     items: itemsForOrder,

@@ -4,6 +4,7 @@ import {
     listDeliveryMen, updateDeliveryMan, deleteDeliveryMan,
     getDeliveryManDashboard, getDeliveryManOrders, updateDeliveryStatus,
 } from '../controllers/deliveryManController.js';
+import { updateRiderLocation, getRiderLocation, getRiderLocationHistory } from '../controllers/trackingController.js';
 import authDeliveryMan from '../middlewares/authDeliveryMan.js';
 import authSeller from '../middlewares/authSeller.js';
 
@@ -148,5 +149,64 @@ deliveryManRouter.get('/orders', authDeliveryMan, getDeliveryManOrders);
  *         description: Status updated
  */
 deliveryManRouter.put('/update-status', authDeliveryMan, updateDeliveryStatus);
+
+/**
+ * @swagger
+ * /api/delivery-man/location:
+ *   post:
+ *     tags: [Delivery Men]
+ *     summary: Update rider location
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [latitude, longitude]
+ *             properties:
+ *               latitude: { type: number }
+ *               longitude: { type: number }
+ *               accuracy: { type: number }
+ *               speed: { type: number }
+ *               heading: { type: number }
+ *     responses:
+ *       200:
+ *         description: Location updated
+ */
+deliveryManRouter.post('/location', authDeliveryMan, updateRiderLocation);
+
+/**
+ * @swagger
+ * /api/delivery-man/location/{riderId}:
+ *   get:
+ *     tags: [Delivery Men]
+ *     summary: Get rider location
+ *     parameters:
+ *       - in: path
+ *         name: riderId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Rider location
+ */
+deliveryManRouter.get('/location/:riderId', authDeliveryMan, getRiderLocation);
+
+/**
+ * @swagger
+ * /api/delivery-man/location/{riderId}/history:
+ *   get:
+ *     tags: [Delivery Men]
+ *     summary: Get rider location history
+ *     parameters:
+ *       - in: path
+ *         name: riderId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Location history
+ */
+deliveryManRouter.get('/location/:riderId/history', authDeliveryMan, getRiderLocationHistory);
 
 export default deliveryManRouter;

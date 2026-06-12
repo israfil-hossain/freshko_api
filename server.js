@@ -2,9 +2,14 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
+import { createServer } from 'http';
 import connectDB from './configs/db.js';
 import { swaggerSpec } from './configs/swagger.js';
 import 'dotenv/config';
+import { initSocket } from './configs/socket.js';
+import { apiLimiter } from './middlewares/rateLimiter.js';
+
+// Routes
 import userRouter from './routes/userRoute.js';
 import sellerRouter from './routes/sellerRoute.js';
 import connectCloudinary from './configs/cloudinary.js';
@@ -19,9 +24,21 @@ import deliveryManRouter from './routes/deliveryManRoute.js';
 import dashboardRouter from './routes/dashboardRoute.js';
 import newsletterRouter from './routes/newsletterRoute.js';
 import deliveryChargeRouter from './routes/deliveryChargeRoute.js';
+import bannerRouter from './routes/bannerRoute.js';
+import walletRouter from './routes/walletRoute.js';
+import notificationRouter from './routes/notificationRoute.js';
+import supportRouter from './routes/supportRoute.js';
+import reviewRouter from './routes/reviewRoute.js';
+import promotionRouter from './routes/promotionRoute.js';
+import trackingRouter from './routes/trackingRoute.js';
+import analyticsRouter from './routes/analyticsRoute.js';
 import { seedDefaultCategories } from './services/categorySeedService.js';
 
 const app = express();
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+initSocket(httpServer);
 
 const port = process.env.PORT || 5001;
 await connectDB();
@@ -50,54 +67,21 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-/**
- * @swagger
- * /stripe:
- *   post:
- *     tags: [Stripe Webhooks]
- *     summary: Stripe payment webhook endpoint
- *     description: Receives webhook events from Stripe for payment confirmations
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       200:
- *         description: Webhook processed
- */
+// Rate limiting
+app.use('/api/', apiLimiter);
+
+// Stripe webhook
 app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks);
 
 // Middleware Configuration
 app.use(express.json());
 app.use(cookieParser());
 
-
+// Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-/**
- * @swagger
- * /:
- *   get:
- *     tags: [Health]
- *     summary: Health check endpoint
- *     responses:
- *       200:
- *         description: API is healthy
- */
+// Health check
 app.get('/', (req, res) => res.send('API is working!'));
-
-/**
- * @swagger
- * /health:
- *   get:
- *     tags: [Health]
- *     summary: Detailed health check
- *     responses:
- *       200:
- *         description: Health status with database connection info
- */
 app.get('/health', async (req, res) => {
     try {
         const mongoose = await import('mongoose');
@@ -112,6 +96,8 @@ app.get('/health', async (req, res) => {
         res.status(500).json({ status: 'unhealthy', error: error.message });
     }
 });
+
+// API Routes
 app.use('/api/user', userRouter);
 app.use('/api/seller', sellerRouter);
 app.use('/api/product', productRouter);
@@ -124,14 +110,28 @@ app.use('/api/delivery-man', deliveryManRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/delivery-charge', deliveryChargeRouter);
+app.use('/api/banner', bannerRouter);
+
+// New Phase 1 Routes
+app.use('/api/wallet', walletRouter);
+app.use('/api/notifications', notificationRouter);
+app.use('/api/support', supportRouter);
+app.use('/api/reviews', reviewRouter);
+app.use('/api/promotions', promotionRouter);
+app.use('/api/tracking', trackingRouter);
+
+// Phase 2 Routes
+app.use('/api/analytics', analyticsRouter);
 
 // Cron jobs now run via Vercel Cron Jobs at /api/cron/subscription
 
 // For Vercel serverless deployment
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
+    httpServer.listen(port, () => {
         console.log(`PORT connected on ${port}`);
+        console.log(`Socket.IO initialized`);
     });
 }
 
 export default app;
+export { httpServer };
