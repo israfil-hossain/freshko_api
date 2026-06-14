@@ -10,12 +10,18 @@ dotenv.config();
 const seedUsers = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/freshko');
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/freshko');
     console.log('✅ Connected to MongoDB');
     console.log('');
 
     const adminPassword = await bcrypt.hash('Grocika@123', 10);
     const defaultPassword = await bcrypt.hash('Password123', 10);
+
+    // Generate unique referral code
+    const generateRefCode = (prefix) => {
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `${prefix}${random}`;
+    };
 
     // ============ 1. SUPER ADMIN ============
     console.log('Creating Super Admin...');
@@ -33,7 +39,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('ADMIN')
       });
       console.log('✅ Super Admin created: admin@grocika.com / Grocika@123');
     } else {
@@ -55,7 +62,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('ADMIN2')
       });
       console.log('✅ Admin created: admin2@freshko.com / Password123');
     } else {
@@ -77,7 +85,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 5000,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('SELLER')
       });
       console.log('✅ Seller created: seller@freshko.com / Password123');
     } else {
@@ -99,7 +108,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('MGR')
       });
       console.log('✅ Shop Manager created: manager@freshko.com / Password123');
     } else {
@@ -121,7 +131,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('PICK')
       });
       console.log('✅ Shop Picker created: picker@freshko.com / Password123');
     } else {
@@ -143,7 +154,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('SUPP')
       });
       console.log('✅ Support Agent created: support@freshko.com / Password123');
     } else {
@@ -165,7 +177,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('CONT')
       });
       console.log('✅ Content Manager created: content@freshko.com / Password123');
     } else {
@@ -187,7 +200,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 0,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('FIN')
       });
       console.log('✅ Finance Manager created: finance@freshko.com / Password123');
     } else {
@@ -209,7 +223,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 2000,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('RIDER')
       });
       console.log('✅ Rider (User) created: rider@freshko.com / Password123');
     } else {
@@ -249,7 +264,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 1000,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('CUST')
       });
       console.log('✅ Customer created: customer@freshko.com / Password123');
     } else {
@@ -271,7 +287,8 @@ const seedUsers = async () => {
         phoneVerified: true,
         walletBalance: 500,
         avatar: '',
-        cartItems: {}
+        cartItems: {},
+        referralCode: generateRefCode('CUST2')
       });
       console.log('✅ Customer 2 created: customer2@freshko.com / Password123');
     } else {
