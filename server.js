@@ -32,6 +32,7 @@ import supportRouter from "./routes/supportRoute.js";
 import trackingRouter from "./routes/trackingRoute.js";
 import userRouter from "./routes/userRoute.js";
 import walletRouter from "./routes/walletRoute.js";
+import cateringRouter from "./routes/cateringRoute.js";
 import { seedDefaultCategories } from "./services/categorySeedService.js";
 
 const app = express();
@@ -140,6 +141,7 @@ app.use("/api/tracking", trackingRouter);
 
 // Phase 2 Routes
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/catering", cateringRouter);
 
 // Cron jobs now run via Vercel Cron Jobs at /api/cron/subscription
 
