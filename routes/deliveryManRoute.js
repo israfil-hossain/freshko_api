@@ -48,40 +48,6 @@ deliveryManRouter.get('/list', authSeller, listDeliveryMen);
 
 /**
  * @swagger
- * /api/delivery-man/{id}:
- *   put:
- *     tags: [Delivery Men]
- *     summary: Update delivery man (Admin)
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Delivery man updated
- */
-deliveryManRouter.put('/:id', authSeller, updateDeliveryMan);
-
-/**
- * @swagger
- * /api/delivery-man/{id}:
- *   delete:
- *     tags: [Delivery Men]
- *     summary: Delete delivery man (Admin)
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Delivery man deleted
- */
-deliveryManRouter.delete('/:id', authSeller, deleteDeliveryMan);
-
-/**
- * @swagger
  * /api/delivery-man/login:
  *   post:
  *     tags: [Delivery Men]
@@ -140,10 +106,10 @@ deliveryManRouter.get('/orders', authDeliveryMan, getDeliveryManOrders);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [orderId, status]
+ *             required: [assignmentId, status]
  *             properties:
- *               orderId: { type: string }
- *               status: { type: string, enum: ['picked-up', 'in-transit', 'delivered'] }
+ *               assignmentId: { type: string }
+ *               status: { type: string, enum: ['picked-up', 'in-transit', 'delivered', 'cancelled'] }
  *     responses:
  *       200:
  *         description: Status updated
@@ -208,5 +174,39 @@ deliveryManRouter.get('/location/:riderId', authDeliveryMan, getRiderLocation);
  *         description: Location history
  */
 deliveryManRouter.get('/location/:riderId/history', authDeliveryMan, getRiderLocationHistory);
+
+/**
+ * @swagger
+ * /api/delivery-man/{id}:
+ *   put:
+ *     tags: [Delivery Men]
+ *     summary: Update delivery man (Admin)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Delivery man updated
+ */
+deliveryManRouter.put('/:id', authSeller, updateDeliveryMan);
+
+/**
+ * @swagger
+ * /api/delivery-man/{id}:
+ *   delete:
+ *     tags: [Delivery Men]
+ *     summary: Delete delivery man (Admin)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Delivery man deleted
+ */
+deliveryManRouter.delete('/:id', authSeller, deleteDeliveryMan);
 
 export default deliveryManRouter;
